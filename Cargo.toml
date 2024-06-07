@@ -8,6 +8,8 @@ clap = { version = "4", features = ["derive", "cargo", "env"] }
 tokio = { version = "1.38.0", features = ["full"] }
 anyhow = "1"
 thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4"
