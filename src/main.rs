@@ -1,14 +1,22 @@
 mod doc;
+mod config;
 
-use crate::doc::DocsEntry;
+use std::collections::HashSet;
+
+use crate::doc::Docset;
+use serde_json::Value;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let resp = reqwest::get("https://devdocs.io/docs.json")
         .await?
-        .json::<Vec<DocsEntry>>()
+        .json::<Vec<Docset>>()
         .await?;
-    println!("{resp:#?}");
+
+    let types = resp
+        .iter()
+        .map(|entry| entry.r#type.clone())
+        .collect::<HashSet<String>>();
 
     Ok(())
 }
