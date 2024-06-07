@@ -1,0 +1,14 @@
+[package]
+name = "dq"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive", "cargo", "env"] }
+tokio = { version = "1.38.0", features = ["full"] }
+anyhow = "1"
+thiserror = "1"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+
