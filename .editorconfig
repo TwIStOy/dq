@@ -1,0 +1,7 @@
+root = true
+
+[*.{h,c,cpp,hpp,hh,cc,hxx,cxx}]
+max_line_length = 80
+
+[*.rs]
+max_line_length = 100
