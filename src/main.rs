@@ -1,15 +1,16 @@
+mod cache;
 mod config;
-mod doc;
+mod context;
+mod entity;
 
-use config::Config;
-use doc::get_docsets;
+use context::Context;
+use entity::get_docsets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config: Config = Default::default();
-    let client = reqwest::Client::new();
+    let context = Context::new();
 
-    let docsets = get_docsets(&config, &client).await?;
+    let docsets = get_docsets(&context).await?;
 
     // println!("Found {} docsets", docsets.len());
     // println!("Docsets: {:#?}", docsets);
