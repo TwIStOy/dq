@@ -8,7 +8,7 @@ use entity::get_docsets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let context = Context::new();
+    let context = Context::new().await;
 
     let docsets = get_docsets(&context).await?;
 

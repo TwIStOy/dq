@@ -43,6 +43,10 @@ impl Config {
         self.update_interval.unwrap_or(60 * 60 * 24)
     }
 
+    pub fn force(&self) -> bool {
+        self.force.unwrap_or(false)
+    }
+
     pub fn extends(self, other: Config) -> Self {
         Self {
             cache_dir: other.cache_dir.or(self.cache_dir),

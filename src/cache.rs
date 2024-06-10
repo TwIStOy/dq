@@ -1,4 +1,8 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -31,41 +35,35 @@ impl CachesManager {
         };
 
         let last_modified = std::time::Duration::from_secs(last_modified);
-        let update_interval = Duration::from_secs(opts.update_interval().unwrap_or(3600));
-        let force = opts.force().unwrap_or(false);
+        let update_interval = Duration::from_secs(opts.update_interval());
+        let force = opts.force();
 
         Self {
             root: root.to_path_buf(),
             last_modified,
+            update_interval,
+            force,
         }
     }
 
     pub fn should_refresh_cache(&self) -> bool {
-        false
+        let last_modified = SystemTime::UNIX_EPOCH + self.last_modified;
+        let duration = SystemTime::now().duration_since(last_modified).unwrap();
+        self.force || duration > self.update_interval
+    }
+
+    pub async fn flush_meta(&mut self) -> anyhow::Result<()> {
+        let last_modified = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap();
+        let meta = CacheMeta {
+            last_modified: last_modified.as_secs(),
+        };
+        self.last_modified = last_modified;
+
+        let meta = serde_json::to_string(&meta).unwrap();
+        let metafile = self.root.join("meta.json");
+        tokio::fs::write(metafile, meta).await?;
+        Ok(())
     }
 }
-
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct CacheItem {
-//     last_modified: i64,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct CachesMeta {
-//     last_updated: i64,
-// }
-//
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct Caches {
-//     root: PathBuf,
-//     cache_meta: HashMap<PathBuf, CacheItem>,
-// }
-//
-// impl Caches {
-//     pub fn new(opts: &Config) -> Self {
-//         Self {
-//             root: opts.cache_dir().to_path_buf(),
-//             caches: HashMap::new(),
-//         }
-//     }
-// }

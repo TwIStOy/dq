@@ -8,7 +8,7 @@ use reqwest::{Client, IntoUrl, Response};
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::io::AsyncWriteExt;
 
-use crate::{cache::Caches, config::Config};
+use crate::{cache::CachesManager, config::Config};
 
 #[derive(Debug)]
 pub struct Context {
@@ -17,15 +17,15 @@ pub struct Context {
     /// The HTTP client.
     pub client: Client,
     /// The caches.
-    pub caches: Caches,
+    pub caches: CachesManager,
 }
 
 impl Context {
     /// Create a new context.
-    pub fn new() -> Self {
+    pub async fn new() -> Self {
         let config = Config::new();
         let client = Client::new();
-        let caches = Caches::new(&config);
+        let caches = CachesManager::new(&config).await;
 
         Self {
             config,
