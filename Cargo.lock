@@ -233,6 +233,7 @@ dependencies = [
  "futures-util",
  "indicatif",
  "libc",
+ "parking_lot",
  "pretty_assertions",
  "reqwest",
  "serde",

@@ -2,15 +2,13 @@ mod cache;
 mod config;
 mod context;
 mod entity;
+mod progress;
 
 use context::Context;
-use entity::get_docsets;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let context = Context::new().await;
-
-    let docsets = get_docsets(&context).await?;
 
     // println!("Found {} docsets", docsets.len());
     // println!("Docsets: {:#?}", docsets);

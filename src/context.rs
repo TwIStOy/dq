@@ -1,14 +1,14 @@
-use std::{env, ffi::CString, os::fd::FromRawFd, path::Path};
+use std::{env, ffi::CString, os::fd::FromRawFd, path::Path, time::Duration};
 
 use anyhow::bail;
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
-use indicatif::ProgressBar;
+use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget};
 use reqwest::{Client, IntoUrl, Response};
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::{cache::CachesManager, config::Config};
+use crate::{cache::CachesManager, config::Config, progress::ProgressBarManager};
 
 #[derive(Debug)]
 pub struct Context {
@@ -18,6 +18,8 @@ pub struct Context {
     pub client: Client,
     /// The caches.
     pub caches: CachesManager,
+    /// The progress bar.
+    pub bar: ProgressBarManager,
 }
 
 impl Context {
@@ -26,11 +28,13 @@ impl Context {
         let config = Config::new();
         let client = Client::new();
         let caches = CachesManager::new(&config).await;
+        let bar = ProgressBarManager::new(&config);
 
         Self {
             config,
             client,
             caches,
+            bar,
         }
     }
 
@@ -49,6 +53,20 @@ impl Context {
 
     pub async fn download_with_progress(&self, response: Response) -> anyhow::Result<Bytes> {
         let total_size = response.content_length();
+
+        let pb = if let Some(total_size) = total_size {
+            let bar = ProgressBar::new(total_size);
+            bar.enable_steady_tick(Duration::from_millis(50));
+            // bar.set_style(
+            //     indicatif::ProgressStyle::default_bar()
+            //         .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta})")
+            //         .progress_chars("#>-"),
+            // );
+            bar
+        } else {
+            let bar = ProgressBar::new_spinner();
+            bar
+        };
 
         let pb = if self.config.progress() {
             let pb = if let Some(total_size) = total_size {
@@ -80,6 +98,27 @@ impl Context {
         }
 
         Ok(payload.freeze())
+    }
+
+    pub fn cache_file_exists<F>(&self, filename: F) -> bool
+    where
+        F: AsRef<Path>,
+    {
+        let cache_path = self.config.cache_dir().join(filename);
+        cache_path.exists()
+    }
+
+    pub async fn read_from_cache<T, F>(&self, filename: F) -> anyhow::Result<T>
+    where
+        T: DeserializeOwned,
+        F: AsRef<Path>,
+    {
+        let cache_path = self.config.cache_dir().join(filename);
+        let mut file = tokio::fs::File::open(cache_path).await?;
+        let mut buf = Vec::new();
+        file.read_to_end(&mut buf).await?;
+        let value = serde_json::from_slice(&buf)?;
+        Ok(value)
     }
 
     pub async fn write_to_cache<T, F>(&self, filename: F, value: &T) -> anyhow::Result<()>
