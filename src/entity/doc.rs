@@ -1,11 +1,12 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path, sync::Arc};
 
+use futures::{stream::FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::sync::OnceCell;
 
-use crate::context::Context;
+use crate::{context::Context, progress::ProgressBar};
 
-use super::Entry;
+use super::{Index, IndexEntry};
 
 const DEVDOCS_META_URL: &str = "https://devdocs.io/docs.json";
 
@@ -19,34 +20,114 @@ pub struct Docset {
     pub release: Option<String>,
     pub mtime: i64,
     pub db_size: i64,
-
-    #[serde(skip)]
-    entries: OnceCell<Vec<Entry>>,
 }
 
 impl Docset {
     /// Try to update all docsets if outdated, then return them.
-    pub async fn try_to_update_all(context: &Context) -> anyhow::Result<Vec<Docset>> {
+    pub async fn try_to_fetch_docsets(context: &Context) -> anyhow::Result<Vec<Docset>> {
         if context.cache_file_exists("docsets.json") && !context.caches.should_refresh_cache() {
             return context.read_from_cache("docsets.json").await;
         }
-
-        let response = context.client.get(DEVDOCS_META_URL).send().await?;
         let pb = context.bar.add_root();
-
-        return context
-            .download_file("docsets.json", DEVDOCS_META_URL)
-            .await;
+        let ret = context
+            .download_file("docsets.json", DEVDOCS_META_URL, &pb)
+            .await?;
+        pb.finish("docsets.json downloaded");
+        Ok(ret)
     }
 
     pub fn base_directory(&self) -> String {
         format!("{}/{}", self.slug, self.mtime)
     }
 
-    pub async fn get_entries(&self, context: &Context) -> anyhow::Result<&Vec<Entry>> {
-        Ok(self
-            .entries
-            .get_or_init(|| async { Entry::try_to_update(context, self).await.unwrap() })
-            .await)
+    async fn fetch_index(
+        &self,
+        context: &Context,
+        parent: &Arc<ProgressBar>,
+    ) -> anyhow::Result<Index> {
+        let url = format!(
+            "https://documents.devdocs.io/{}/index.json?{}",
+            self.slug, self.mtime
+        );
+        let filename = self.base_directory() + "/index.json";
+        let pb = context.bar.add_child_with_total(parent, 0);
+        let index = context.download_file(filename, url, &pb).await?;
+        pb.finish(format!("{} index downloaded", self.name));
+        Ok(index)
+    }
+
+    async fn fetch_db(
+        &self,
+        context: &Context,
+        parent: &Arc<ProgressBar>,
+    ) -> anyhow::Result<HashMap<String, String>> {
+        let url = format!(
+            "https://documents.devdocs.io/{}/db.json?{}",
+            self.slug, self.mtime
+        );
+        let filename = self.base_directory() + "/db.json";
+        let pb = context.bar.add_child_with_total(parent, 0);
+        let db = context.download_file(filename, url, &pb).await?;
+        pb.finish(format!("{} db downloaded", self.name));
+        Ok(db)
+    }
+
+    async fn write_page(path: impl AsRef<Path>, data: &str) -> anyhow::Result<()> {
+        if let Some(parent) = path.as_ref().parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        tokio::fs::write(path, data.as_bytes()).await?;
+        Ok(())
+    }
+
+    async fn unpack_db(
+        &self,
+        context: &Context,
+        parent: &Arc<ProgressBar>,
+        db: &HashMap<String, String>,
+    ) -> anyhow::Result<()> {
+        let pb = context.bar.add_child_with_total(parent, db.len() as u64);
+        let db_base_directory = context
+            .config
+            .cache_dir()
+            .join(self.base_directory())
+            .join("db");
+
+        let mut items = db.iter();
+        let mut futures = FuturesUnordered::new();
+
+        loop {
+            while futures.len() < 4 {
+                if let Some((path, content)) = items.next() {
+                    let filename = db_base_directory.join(path);
+                    let fut = Self::write_page(filename, content);
+                    futures.push(fut);
+                } else {
+                    break;
+                }
+            }
+            if futures.is_empty() {
+                break;
+            }
+            if let Some(res) = futures.next().await {
+                res?;
+                pb.inc(1);
+            }
+        }
+
+        pb.finish(format!("{} pages written", db.len()));
+        Ok(())
+    }
+
+    pub async fn update_all(&self, context: &Context) -> anyhow::Result<Index> {
+        let pb = context.bar.add_root();
+        pb.set_message(format!("Updating {}", self.name));
+
+        let (index, db) = tokio::join!(self.fetch_index(context, &pb), self.fetch_db(context, &pb));
+        let index = index?;
+        let db = db?;
+        self.unpack_db(context, &pb, &db).await?;
+
+        Ok(index)
     }
 }

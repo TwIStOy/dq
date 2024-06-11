@@ -80,8 +80,28 @@ impl ProgressBar {
         self.inner.set_length(total);
     }
 
+    pub fn set_position(&self, pos: u64) {
+        self.inner.set_position(pos);
+    }
+
     pub fn set_message(&self, msg: impl Into<Cow<'static, str>>) {
         self.inner.set_message(msg);
+    }
+
+    pub fn finish(&self, msg: impl Into<Cow<'static, str>>) {
+        self.inner.finish_with_message(msg);
+    }
+
+    pub fn update_template(&self, total: Option<u64>) {
+        if let Some(total) = total {
+            self.switch_to_known_template(total);
+        } else {
+            self.switch_to_unknown_template();
+        }
+    }
+
+    pub fn inc(&self, n: u64) {
+        self.inner.inc(n);
     }
 }
 

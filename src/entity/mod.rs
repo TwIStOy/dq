@@ -1,5 +1,5 @@
 mod doc;
-mod entry;
+mod index;
 
 pub use doc::*;
-pub use entry::*;
+pub use index::*;
