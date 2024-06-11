@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     sync::{Arc, Weak},
+    time::Duration,
 };
 
 use crate::config::Config;
@@ -12,6 +13,7 @@ const KNOWN_TOTAL_TEMPLATE: &str =
     "{prefix}{spinner:.green} [{bar:40.cyan/blue}] {binary_bytes}/{binary_total_bytes} {binary_bytes_per_sec} ({eta}) {wide_msg}";
 const UNKNOWN_TOTAL_TEMPLATE: &str =
     "{prefix}{spinner:.green} {binary_bytes} {binary_bytes_per_sec} {wide_msg}";
+const ONLY_MESSAGE_TEMPLATE: &str = "{prefix}{spinner:.green} {wide_msg}";
 
 struct BarState {
     level: u32,
@@ -34,7 +36,10 @@ impl ProgressBar {
         let style = indicatif::ProgressStyle::default_bar()
             .template(UNKNOWN_TOTAL_TEMPLATE)
             .unwrap();
-        let inner = indicatif::ProgressBar::new_spinner().with_style(style);
+        let inner =
+            indicatif::ProgressBar::with_draw_target(None, indicatif::ProgressDrawTarget::hidden())
+                .with_style(style);
+        inner.enable_steady_tick(Duration::from_millis(50));
         Self {
             inner,
             state: Mutex::new(BarState::new_root()),
@@ -52,7 +57,12 @@ impl ProgressBar {
                 .template(UNKNOWN_TOTAL_TEMPLATE)
                 .unwrap()
         };
-        let inner = indicatif::ProgressBar::new(total.unwrap_or(0)).with_style(style);
+        let inner = indicatif::ProgressBar::with_draw_target(
+            total,
+            indicatif::ProgressDrawTarget::hidden(),
+        )
+        .with_style(style);
+        inner.enable_steady_tick(Duration::from_millis(50));
         Self {
             inner,
             state: Mutex::new(BarState::new_child(parent)),
@@ -143,6 +153,19 @@ impl ProgressBarManager {
 
     pub fn add_root(&self) -> Arc<ProgressBar> {
         let bar = Arc::new(ProgressBar::new_root());
+        self.root.clear().unwrap();
+        self.root.add(bar.inner.clone());
+        bar
+    }
+
+    pub fn add_msg(&self) -> Arc<ProgressBar> {
+        let bar = Arc::new(ProgressBar::new_root());
+        bar.inner.set_style(
+            indicatif::ProgressStyle::default_bar()
+                .template(ONLY_MESSAGE_TEMPLATE)
+                .unwrap(),
+        );
+        self.root.clear().unwrap();
         self.root.add(bar.inner.clone());
         bar
     }
@@ -155,16 +178,19 @@ impl ProgressBarManager {
 
         let previous_bar = {
             let mut parent_state = parent.state.lock();
-            parent_state.children.push(bar.clone());
-            if let Some(last) = parent_state.get_last_child() {
+            let previous = if let Some(last) = parent_state.get_last_child() {
                 last.state.lock().on_last_child(false);
                 Some(last.bar().clone())
             } else {
                 None
-            }
+            };
+            parent_state.children.push(bar.clone());
+            previous
         };
+        println!("previous_bar: {:?}", previous_bar);
 
         let previous_bar = previous_bar.unwrap_or_else(|| parent.bar().clone());
+        self.root.clear().unwrap();
         self.root.insert_after(&previous_bar, bar.bar().clone());
         bar
     }

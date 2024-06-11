@@ -99,7 +99,7 @@ impl Docset {
         loop {
             while futures.len() < 4 {
                 if let Some((path, content)) = items.next() {
-                    let filename = db_base_directory.join(path);
+                    let filename = db_base_directory.join(path).join("_index");
                     let fut = Self::write_page(filename, content);
                     futures.push(fut);
                 } else {
@@ -120,7 +120,7 @@ impl Docset {
     }
 
     pub async fn update_all(&self, context: &Context) -> anyhow::Result<Index> {
-        let pb = context.bar.add_root();
+        let pb = context.bar.add_msg();
         pb.set_message(format!("Updating {}", self.name));
 
         let (index, db) = tokio::join!(self.fetch_index(context, &pb), self.fetch_db(context, &pb));

@@ -108,9 +108,11 @@ impl Context {
         T: Serialize,
         F: AsRef<Path>,
     {
-        tokio::fs::create_dir_all(self.config.cache_dir()).await?;
-
         let cache_path = self.config.cache_dir().join(filename);
+        if let Some(parent) = cache_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
         let tmp_dir = env::temp_dir();
         let ptr = match CString::new(format!("{}/dq-cache-XXXXXX.cache", tmp_dir.display())) {
             Ok(p) => p.into_raw(),
@@ -124,7 +126,10 @@ impl Context {
         };
 
         if fd < 0 {
-            bail!(std::io::Error::last_os_error());
+            bail!(
+                "Failed to create temporary file: {}",
+                std::io::Error::last_os_error()
+            );
         }
 
         let mut tmpfile = unsafe { tokio::fs::File::from_raw_fd(fd) };
