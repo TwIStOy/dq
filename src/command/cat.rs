@@ -16,6 +16,9 @@ pub struct CatArgs {
     /// Do not try to update the docset if the expected page is not found.
     #[arg(short, long, default_value = "false")]
     no_update: bool,
+    /// Max width of the output.
+    #[arg(short, long, default_value = "160")]
+    width: usize,
 }
 
 fn default_colour_map(annotations: &[RichAnnotation], s: &str) -> String {
@@ -102,8 +105,10 @@ impl Command for CatArgs {
 
         let content = tokio::fs::read_to_string(&page_path).await?;
 
-        let config = html2text::config::rich().use_doc_css().max_wrap_width(200);
-        let ret = config.coloured(Cursor::new(&content), 200, move |anns, s| {
+        let config = html2text::config::rich()
+            .use_doc_css()
+            .max_wrap_width(self.width);
+        let ret = config.coloured(Cursor::new(&content), self.width, move |anns, s| {
             default_colour_map(anns, s)
         })?;
 
