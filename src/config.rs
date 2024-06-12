@@ -16,6 +16,8 @@ pub struct Config {
     /// Whether to force update the cache.
     #[serde(skip)]
     pub force: Option<bool>,
+    /// The number of concurrent downloads.
+    pub limit: Option<usize>,
 }
 
 static DEFAULT_CACHE_DIR: LazyLock<PathBuf> = LazyLock::new(default_cache_dir);
@@ -49,6 +51,7 @@ impl Config {
             progress: other.progress.or(self.progress),
             update_interval: other.update_interval.or(self.update_interval),
             force: other.force.or(self.force),
+            limit: other.limit.or(self.limit),
         }
     }
 

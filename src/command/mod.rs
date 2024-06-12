@@ -1,6 +1,7 @@
 use crate::context::Context;
 
 pub mod update;
+pub mod search;
 
 #[async_trait::async_trait]
 pub trait Command {

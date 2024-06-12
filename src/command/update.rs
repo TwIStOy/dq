@@ -1,9 +1,9 @@
-use std::{collections::HashSet, path::PathBuf};
+use std::collections::HashSet;
 
 use clap::Args;
 use futures::{stream::FuturesUnordered, StreamExt};
 
-use crate::{config::Config, context::Context, entity::Docset};
+use crate::{context::Context, entity::Docset};
 
 use super::Command;
 
@@ -19,33 +19,13 @@ pub struct UpdateArgs {
     /// Update all docsets instead of the specified ones.
     #[arg(long, default_value = "false")]
     all: bool,
-    /// Suppress all progress bars.
-    #[arg(long, default_value = "false")]
-    no_progress: bool,
-    /// Specify the temparory directory to store the downloaded files.
-    #[arg(long)]
-    cache_dir: Option<PathBuf>,
-    /// The number of concurrent downloads.
-    #[arg(short, long, default_value = "5")]
-    limit: usize,
+    /// If specified, only update the specified docsets.
     slugs: Vec<String>,
-}
-
-impl From<UpdateArgs> for Config {
-    fn from(args: UpdateArgs) -> Self {
-        Self {
-            cache_dir: args.cache_dir,
-            progress: if args.no_progress { Some(false) } else { None },
-            update_interval: None,
-            force: if args.force { Some(true) } else { None },
-        }
-    }
 }
 
 #[async_trait::async_trait]
 impl Command for UpdateArgs {
     async fn run(&self, context: &mut Context) -> anyhow::Result<()> {
-        context.config = context.config.clone().extends(self.clone().into());
         let docsets = Docset::try_to_fetch_docsets(context).await?;
         let pb = context.bar.add_root();
         pb.update_style(
@@ -78,7 +58,7 @@ impl Command for UpdateArgs {
         let mut futures = FuturesUnordered::new();
 
         loop {
-            while futures.len() < 5 {
+            while futures.len() < context.config.limit.unwrap_or(5) {
                 let docset = match iter.next() {
                     Some(docset) => docset,
                     None => break,
