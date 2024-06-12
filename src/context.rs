@@ -1,4 +1,10 @@
-use std::{env, ffi::CString, os::fd::FromRawFd, path::Path, sync::Arc};
+use std::{
+    env,
+    ffi::CString,
+    os::fd::FromRawFd,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::bail;
 use bytes::{Bytes, BytesMut};
@@ -92,6 +98,13 @@ impl Context {
     {
         let cache_path = self.config.cache_dir().join(filename);
         cache_path.exists()
+    }
+
+    pub fn build_cache_path<F>(&self, filename: F) -> PathBuf
+    where
+        F: AsRef<Path>,
+    {
+        self.config.cache_dir().join(filename)
     }
 
     pub async fn read_from_cache<T, F>(&self, filename: F) -> anyhow::Result<T>

@@ -34,6 +34,8 @@ enum Commands {
     Update(command::update::UpdateArgs),
     /// Search in the docsets.
     Search(command::search::SearchArgs),
+    /// Display a doc page.
+    Cat(command::cat::CatArgs),
 }
 
 #[tokio::main]
@@ -46,6 +48,7 @@ async fn main() -> anyhow::Result<()> {
     match cli.command {
         Commands::Update(args) => args.run(&mut context).await?,
         Commands::Search(args) => args.run(&mut context).await?,
+        Commands::Cat(args) => args.run(&mut context).await?,
     }
 
     Ok(())

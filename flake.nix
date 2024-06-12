@@ -31,6 +31,7 @@
                 libiconv
                 cargo-nextest
                 cargo-expand
+                openssl
               ]
               ++ lib.lists.optionals stdenv.isDarwin (with pkgs.darwin.apple_sdk_11_0.frameworks; [
                 Security
