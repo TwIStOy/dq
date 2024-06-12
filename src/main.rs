@@ -25,6 +25,7 @@ async fn update_all(context: &Context) -> anyhow::Result<()> {
             )
             .unwrap(),
     );
+    pb.set_length(docsets.len() as u64);
 
     let mut items = docsets.iter();
     let mut futures = FuturesUnordered::new();

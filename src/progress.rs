@@ -73,6 +73,10 @@ impl ProgressBar {
         self.inner.set_message(msg);
     }
 
+    pub fn set_length(&self, len: u64) {
+        self.inner.set_length(len);
+    }
+
     pub fn finish(&self, msg: impl Into<Cow<'static, str>>) {
         self.inner.finish_with_message(msg);
     }
