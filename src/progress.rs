@@ -85,6 +85,10 @@ impl ProgressBar {
         }
     }
 
+    pub fn update_style(&self, style: indicatif::ProgressStyle) {
+        self.inner.set_style(style);
+    }
+
     pub fn inc(&self, n: u64) {
         self.inner.inc(n);
     }
@@ -160,9 +164,13 @@ impl ProgressBarManager {
         bar
     }
 
-    pub fn add_msg(&self, parent: Option<&Arc<ProgressBar>>) -> Arc<ProgressBar> {
+    pub fn add_msg(
+        &self,
+        parent: Option<&Arc<ProgressBar>>,
+        always_last: bool,
+    ) -> Arc<ProgressBar> {
         let bar = Arc::new(ProgressBar::new(parent));
-        if let Some(parent) = parent {
+        if let (Some(parent), false) = (parent, always_last) {
             self.insert_after_last_child(parent, &bar);
         } else {
             self.root.add(bar.inner.clone());
@@ -178,14 +186,16 @@ impl ProgressBarManager {
 
     fn insert_after_last_child(&self, parent: &Arc<ProgressBar>, bar: &Arc<ProgressBar>) {
         let previous_bar = {
-            let mut parent_state = parent.state.lock();
-            let previous = if let Some(last) = parent_state.get_last_child() {
+            let last_child = { parent.state.lock().get_last_child().cloned() };
+            let previous = if let Some(last) = last_child {
                 last.on_last_child(false);
                 Some(last.bar().clone())
             } else {
                 None
             };
-            parent_state.children.push(bar.clone());
+            {
+                parent.state.lock().children.push(bar.clone());
+            }
             previous
         };
         let previous_bar = previous_bar.unwrap_or_else(|| parent.bar().clone());

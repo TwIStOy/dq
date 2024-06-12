@@ -2,11 +2,10 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 
 use futures::{stream::FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
-use tokio::sync::OnceCell;
 
 use crate::{context::Context, progress::ProgressBar};
 
-use super::{Index, IndexEntry};
+use super::Index;
 
 const DEVDOCS_META_URL: &str = "https://devdocs.io/docs.json";
 
@@ -133,7 +132,7 @@ impl Docset {
         context: &Context,
         parent: &Arc<ProgressBar>,
     ) -> anyhow::Result<Index> {
-        let pb = context.bar.add_msg(Some(parent));
+        let pb = context.bar.add_msg(Some(parent), true);
         pb.set_message(format!("Updating {}", self.name));
 
         let (index, db) = tokio::join!(self.fetch_index(context, &pb), self.fetch_db(context, &pb));
