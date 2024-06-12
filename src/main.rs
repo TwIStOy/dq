@@ -22,7 +22,7 @@ async fn update_all(context: &Context) -> anyhow::Result<()> {
 
     let mut items = docsets.iter();
     let docset = items.next().unwrap();
-    docset.update_all(context).await?;
+    docset.update_all(context, &pb).await?;
 
     // let mut futures = FuturesUnordered::new();
     // loop {

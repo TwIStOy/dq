@@ -50,9 +50,14 @@ impl Docset {
             self.slug, self.mtime
         );
         let filename = self.base_directory() + "/index.json";
-        let pb = context.bar.add_child_with_total(parent, 0);
-        let index = context.download_file(filename, url, &pb).await?;
-        pb.finish(format!("{} index downloaded", self.name));
+        let pb = context.bar.add_child_with_total(parent, None);
+        let index: Index = context.download_file(filename, url, &pb).await?;
+        pb.finish(format!(
+            "{} index downloaded, got {} entries",
+            self.name,
+            index.entries.len()
+        ));
+        context.bar.remove_bar(&pb);
         Ok(index)
     }
 
@@ -66,9 +71,10 @@ impl Docset {
             self.slug, self.mtime
         );
         let filename = self.base_directory() + "/db.json";
-        let pb = context.bar.add_child_with_total(parent, 0);
+        let pb = context.bar.add_child_with_total(parent, None);
         let db = context.download_file(filename, url, &pb).await?;
         pb.finish(format!("{} db downloaded", self.name));
+        context.bar.remove_bar(&pb);
         Ok(db)
     }
 
@@ -86,7 +92,9 @@ impl Docset {
         parent: &Arc<ProgressBar>,
         db: &HashMap<String, String>,
     ) -> anyhow::Result<()> {
-        let pb = context.bar.add_child_with_total(parent, db.len() as u64);
+        let pb = context
+            .bar
+            .add_child_with_total(parent, Some(db.len() as u64));
         let db_base_directory = context
             .config
             .cache_dir()
@@ -116,11 +124,16 @@ impl Docset {
         }
 
         pb.finish(format!("{} pages written", db.len()));
+        context.bar.remove_bar(&pb);
         Ok(())
     }
 
-    pub async fn update_all(&self, context: &Context) -> anyhow::Result<Index> {
-        let pb = context.bar.add_msg();
+    pub async fn update_all(
+        &self,
+        context: &Context,
+        parent: &Arc<ProgressBar>,
+    ) -> anyhow::Result<Index> {
+        let pb = context.bar.add_msg(Some(parent));
         pb.set_message(format!("Updating {}", self.name));
 
         let (index, db) = tokio::join!(self.fetch_index(context, &pb), self.fetch_db(context, &pb));

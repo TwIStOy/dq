@@ -76,6 +76,10 @@ impl Context {
             let chunk = chunk?;
             downloaded += chunk.len() as u64;
             payload.extend_from_slice(&chunk);
+            // for _ in 0..chunk.len() {
+            //     pb.inc(1);
+            //     tokio::time::sleep(Duration::from_secs(1)).await;
+            // }
             pb.set_position(downloaded);
         }
 
