@@ -23,6 +23,8 @@ parking_lot = "0.12"
 async-trait = "0.1"
 fuzzy-matcher = "0.3"
 stanza = "0.5.1"
+html2text = { version = "0.12.5", features = ["css"] }
+termion = "4.0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4"

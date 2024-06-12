@@ -45,16 +45,6 @@ impl Config {
         self.force.unwrap_or(false)
     }
 
-    pub fn extends(self, other: Config) -> Self {
-        Self {
-            cache_dir: other.cache_dir.or(self.cache_dir),
-            progress: other.progress.or(self.progress),
-            update_interval: other.update_interval.or(self.update_interval),
-            force: other.force.or(self.force),
-            limit: other.limit.or(self.limit),
-        }
-    }
-
     pub fn new_from_file() -> Self {
         match Self::load_from_file() {
             Ok(config) => config,
