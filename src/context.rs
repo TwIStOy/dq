@@ -52,6 +52,7 @@ impl Context {
         filename: P,
         url: S,
         pb: &Arc<ProgressBar>,
+        skip_if_exists: bool,
     ) -> anyhow::Result<T>
     where
         P: AsRef<Path>,
@@ -59,11 +60,22 @@ impl Context {
         S: IntoUrl,
     {
         pb.set_message(format!("Downloading {}", filename.as_ref().display()));
-        let response = self.client.get(url).send().await?;
-        let payload = self.download_with_progress(response, pb).await?;
-        let value: T = serde_json::from_slice(&payload)?;
-        self.write_to_cache(filename, &value).await?;
-        Ok(value)
+        if skip_if_exists && self.cache_file_exists(filename.as_ref()) {
+            let value = self.read_from_cache(filename.as_ref()).await?;
+            Ok(value)
+        } else {
+            let response = self.client.get(url).send().await?;
+            let payload = self.download_with_progress(response, pb).await?;
+            let value: T = serde_json::from_slice(&payload).map_err(|e| {
+                anyhow::anyhow!("Parse {}, err: {}", filename.as_ref().to_string_lossy(), e)
+            })?;
+            self.write_to_cache(filename.as_ref(), &value)
+                .await
+                .map_err(|e| {
+                    anyhow::anyhow!("Write {}, err: {}", filename.as_ref().to_string_lossy(), e)
+                })?;
+            Ok(value)
+        }
     }
 
     pub async fn download_with_progress(
@@ -82,10 +94,6 @@ impl Context {
             let chunk = chunk?;
             downloaded += chunk.len() as u64;
             payload.extend_from_slice(&chunk);
-            // for _ in 0..chunk.len() {
-            //     pb.inc(1);
-            //     tokio::time::sleep(Duration::from_secs(1)).await;
-            // }
             pb.set_position(downloaded);
         }
 
@@ -112,11 +120,13 @@ impl Context {
         T: DeserializeOwned,
         F: AsRef<Path>,
     {
+        let filename = filename.as_ref();
         let cache_path = self.config.cache_dir().join(filename);
         let mut file = tokio::fs::File::open(cache_path).await?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf).await?;
-        let value = serde_json::from_slice(&buf)?;
+        let value = serde_json::from_slice(&buf)
+            .map_err(|e| anyhow::anyhow!("Parse {}, err: {}", filename.to_string_lossy(), e))?;
         Ok(value)
     }
 

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 pub struct IndexEntry {
     pub name: String,
     pub path: String,
-    pub r#type: String,
+    pub r#type: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -29,7 +29,7 @@ impl Docset {
         }
         let pb = context.bar.add_root();
         let ret = context
-            .download_file("docsets.json", DEVDOCS_META_URL, &pb)
+            .download_file("docsets.json", DEVDOCS_META_URL, &pb, false)
             .await?;
         context.caches.flush_meta().await?;
         pb.finish("docsets.json downloaded");
@@ -51,7 +51,7 @@ impl Docset {
         );
         let filename = self.base_directory() + "/index.json";
         let pb = context.bar.add_child_with_total(parent, None);
-        let index: Index = context.download_file(filename, url, &pb).await?;
+        let index: Index = context.download_file(filename, url, &pb, true).await?;
         pb.finish(format!(
             "{} index downloaded, got {} entries",
             self.name,
@@ -72,7 +72,7 @@ impl Docset {
         );
         let filename = self.base_directory() + "/db.json";
         let pb = context.bar.add_child_with_total(parent, None);
-        let db = context.download_file(filename, url, &pb).await?;
+        let db = context.download_file(filename, url, &pb, true).await?;
         pb.finish(format!("{} db downloaded", self.name));
         context.bar.remove_bar(&pb);
         Ok(db)
