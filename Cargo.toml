@@ -20,6 +20,7 @@ futures-util = "0.3.30"
 bytes = "1"
 libc = "0.2"
 parking_lot = "0.12"
+async-trait = "0.1"
 
 [dev-dependencies]
 pretty_assertions = "1.4"

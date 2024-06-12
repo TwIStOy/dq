@@ -3,23 +3,19 @@ use std::{
     sync::LazyLock,
 };
 
-use clap::Parser;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Default, Parser)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct Config {
     /// The directory where the cache is stored.
-    #[arg(short, long)]
-    cache_dir: Option<PathBuf>,
+    pub cache_dir: Option<PathBuf>,
     /// Whether to show progress bars.
-    #[arg(short, long)]
-    progress: Option<bool>,
+    pub progress: Option<bool>,
     /// The interval to update the cache. in seconds.
-    update_interval: Option<u64>,
+    pub update_interval: Option<u64>,
     /// Whether to force update the cache.
     #[serde(skip)]
-    #[arg(short, long)]
-    force: Option<bool>,
+    pub force: Option<bool>,
 }
 
 static DEFAULT_CACHE_DIR: LazyLock<PathBuf> = LazyLock::new(default_cache_dir);
@@ -56,21 +52,8 @@ impl Config {
         }
     }
 
-    pub fn new() -> Self {
-        let from_file = Self::new_from_file();
-        let from_args = Self::new_from_args();
-        from_file.extends(from_args)
-    }
-
-    fn new_from_file() -> Self {
+    pub fn new_from_file() -> Self {
         match Self::load_from_file() {
-            Ok(config) => config,
-            Err(_) => Self::default(),
-        }
-    }
-
-    fn new_from_args() -> Self {
-        match Self::try_parse() {
             Ok(config) => config,
             Err(_) => Self::default(),
         }

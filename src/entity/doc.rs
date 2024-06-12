@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use futures::{stream::FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 
-use crate::{context::Context, progress::ProgressBar};
+use crate::{context::Context, utils::progress::ProgressBar};
 
 use super::Index;
 
@@ -23,7 +23,7 @@ pub struct Docset {
 
 impl Docset {
     /// Try to update all docsets if outdated, then return them.
-    pub async fn try_to_fetch_docsets(context: &Context) -> anyhow::Result<Vec<Docset>> {
+    pub async fn try_to_fetch_docsets(context: &mut Context) -> anyhow::Result<Vec<Docset>> {
         if context.cache_file_exists("docsets.json") && !context.caches.should_refresh_cache() {
             return context.read_from_cache("docsets.json").await;
         }
@@ -31,6 +31,7 @@ impl Docset {
         let ret = context
             .download_file("docsets.json", DEVDOCS_META_URL, &pb)
             .await?;
+        context.caches.flush_meta().await?;
         pb.finish("docsets.json downloaded");
         Ok(ret)
     }

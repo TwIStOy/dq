@@ -1,9 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::context::Context;
-
-use super::Docset;
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct IndexEntry {
     pub name: String,

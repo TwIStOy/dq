@@ -1,4 +1,4 @@
-use std::{env, ffi::CString, os::fd::FromRawFd, path::Path, sync::Arc, time::Duration};
+use std::{env, ffi::CString, os::fd::FromRawFd, path::Path, sync::Arc};
 
 use anyhow::bail;
 use bytes::{Bytes, BytesMut};
@@ -10,7 +10,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::{
     cache::CachesManager,
     config::Config,
-    progress::{ProgressBar, ProgressBarManager},
+    utils::progress::{ProgressBar, ProgressBarManager},
 };
 
 #[derive(Debug)]
@@ -28,7 +28,7 @@ pub struct Context {
 impl Context {
     /// Create a new context.
     pub async fn new() -> Self {
-        let config = Config::new();
+        let config = Config::new_from_file();
         let client = Client::new();
         let caches = CachesManager::new(&config).await;
         let bar = ProgressBarManager::new(&config);

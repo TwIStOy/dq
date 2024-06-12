@@ -1,53 +1,37 @@
 mod cache;
+mod command;
 mod config;
 mod context;
 mod entity;
-mod progress;
+mod utils;
 
+use clap::{Parser, Subcommand};
+use command::Command as _;
 use context::Context;
-use entity::Docset;
-use futures::{stream::FuturesUnordered, StreamExt};
+
+#[derive(Debug, Parser)]
+#[command(name = "dq")]
+#[command(about = "A fictional versioning CLI", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    /// Update the docsets.
+    Update(command::update::UpdateArgs),
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let context = Context::new().await;
-    update_all(&context).await?;
-    Ok(())
-}
+    let mut context = Context::new().await;
 
-async fn update_all(context: &Context) -> anyhow::Result<()> {
-    let docsets = Docset::try_to_fetch_docsets(context).await?;
-    let pb = context.bar.add_root();
-    pb.update_style(
-        indicatif::ProgressStyle::default_bar()
-            .template(
-                "{prefix}{spinner:.green} [{bar:40.cyan/blue}] {human_pos}/{human_len} {wide_msg}",
-            )
-            .unwrap(),
-    );
-    pb.set_length(docsets.len() as u64);
+    let cli = Cli::parse();
 
-    let mut items = docsets.iter();
-    let mut futures = FuturesUnordered::new();
-
-    loop {
-        while futures.len() < 5 {
-            let docset = match items.next() {
-                Some(docset) => docset,
-                None => break,
-            };
-            let fut = docset.update_all(context, &pb);
-            futures.push(fut);
-        }
-        if futures.is_empty() {
-            break;
-        }
-        if let Some(res) = futures.next().await {
-            res?;
-            pb.inc(1);
-        }
+    match cli.command {
+        Commands::Update(args) => args.run(&mut context).await?,
     }
 
-    pb.finish("All docsets updated");
     Ok(())
 }
